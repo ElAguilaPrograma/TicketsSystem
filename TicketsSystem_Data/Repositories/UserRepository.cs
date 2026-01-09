@@ -7,9 +7,12 @@ namespace TicketsSystem_Data.Repositories
     public interface IUserRepository
     {
         Task CreateNewUser(User newUser);
+        Task DeleteUser(User userInfo);
         Task<bool> EmailExist(string email);
         Task<IEnumerable<User>> GetAllUsers();
+        Task<User?> GetUserById(Guid userId);
         Task<User?> Login(string email);
+        Task UpdateUserInfo(User userInfo);
     }
 
     public class UserRepository: IUserRepository
@@ -31,26 +34,31 @@ namespace TicketsSystem_Data.Repositories
             return users;
         }
 
-        public async Task CreateNewUser(User newUser)
+        public Task CreateNewUser(User newUser)
         {
             _context.Users.Add(newUser);
-            await _context.SaveChangesAsync();
+            return _context.SaveChangesAsync();
         }
 
-        public Task<bool> EmailExist(string email) 
+        public Task UpdateUserInfo(User userInfo)
+        {
+            _context.Update(userInfo);
+            return _context.SaveChangesAsync();
+        }
+
+        public Task DeleteUser(User userInfo)
+        {
+            _context.Users.Remove(userInfo);
+            return _context.SaveChangesAsync();
+        }
+
+        public Task<User?> Login(string email)
+            => _context.Users.FirstOrDefaultAsync(e =>  e.Email == email);
+
+        public Task<User?> GetUserById(Guid userId)
+            => _context.Users.FirstOrDefaultAsync(u => u.UserId == userId);
+
+        public Task<bool> EmailExist(string email)
             => _context.Users.AnyAsync(u => u.Email == email);
-
-        public async Task UpdateUserInfo(User userInfo)
-        {
-            _context.Users.Update(userInfo);
-            await _context.SaveChangesAsync();
-        }
-
-        public async Task<User?> Login(string email)
-        {
-            return await _context.Users
-                .FirstOrDefaultAsync(u => u.Email == email);
-        }
-
     }
 }

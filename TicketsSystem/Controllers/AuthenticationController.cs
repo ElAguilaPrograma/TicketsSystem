@@ -40,6 +40,30 @@ namespace TicketsSystem.Controllers
             return Ok();
         }
 
+        [HttpPost("updateuser/{userId}")]
+        [Authorize(Roles = "Admin")]
+        public async Task<IActionResult> UpdateUserInformation([FromBody] UserDTO userDTO, string userId)
+        {
+            var result = await _userService.UpdateUserInformationAsync(userDTO, userId);
+
+            if (result.IsFailed)
+                return BadRequest(new { errors = result.Errors.Select(e => e.Message) });
+
+            return Ok();
+        }
+
+        [HttpPost("deleteuser/{userId}")]
+        [Authorize(Roles = "Admin")]
+        public async Task<IActionResult> DeleteUser(string userId)
+        {
+            var result = await _userService.DeleteUserAsync(userId);
+
+            if (result.IsFailed)
+                return BadRequest(new { errors = result.Errors.Select(e => e.Message) });
+
+            return Ok();
+        }
+
         [HttpPost("login")]
         public async Task<IActionResult> Login([FromBody] LoginRequest request)
         {

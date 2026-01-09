@@ -19,8 +19,10 @@ namespace TicketsSystem.Core.Services
     public interface IUserService
     {
         Task<Result> CreateNewUserAsync(UserDTO userDTO);
+        Task<Result> DeleteUserAsync(string userIdStr);
         Task<Result<IEnumerable<UserDTO>>> GetAllUsersAsync();
         Task<Result<LoginSuccessDto>> LoginAsync(LoginRequest request);
+        Task<Result> UpdateUserInformationAsync(UserDTO userDTO, string userIdStr);
     }
 
     public class UserService : IUserService
@@ -122,6 +124,49 @@ namespace TicketsSystem.Core.Services
                 Token = token,
                 Expiration = tokenExpiration
             });
+        }
+
+        public async Task<Result> UpdateUserInformationAsync(UserDTO userDTO, string userIdStr)
+        {
+            Guid userId = Guid.Parse(userIdStr);
+
+            if (userDTO == null)
+                throw new ArgumentNullException("UserDTo is null");
+
+            var validationResult = await _userValidation.ValidateAsync(userDTO);
+            if (!validationResult.IsValid)
+            {
+                var errorMessages = validationResult.Errors.Select(e => e.ErrorMessage);
+                return Result.Fail(errorMessages);
+            }
+
+            var user = await _userRepository.GetUserById(userId);
+            if (user == null)
+                return Result.Fail("The user does not exits");
+
+            user.FullName = userDTO.FullName;
+            user.Email = userDTO.Email;
+            user.Role = userDTO.Role;
+            user.IsActive = userDTO.IsActive;
+            user.PasswordHash = _passwordHasher.HashPassword(user, userDTO.Password);
+
+            await _userRepository.UpdateUserInfo(user);
+
+            return Result.Ok();
+        }
+
+        public async Task<Result> DeleteUserAsync(string userIdStr)
+        {
+            Guid userId = Guid.Parse(userIdStr);
+
+            var user = await _userRepository.GetUserById(userId);
+
+            if (user == null)
+                return Result.Fail("The user does not exits");
+
+            await _userRepository.DeleteUser(user);
+
+            return Result.Ok();
         }
 
         private string GenereteJwtToken(User user, DateTime expiration)
