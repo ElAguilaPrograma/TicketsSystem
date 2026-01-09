@@ -1,21 +1,24 @@
 ﻿using Microsoft.AspNetCore.Identity;
-using Microsoft.AspNetCore.Mvc;
-using System;
-using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
-using System.Text;
 using TicketsSystem.Core.Validations;
 using TicketsSystem.Data.DTOs;
 using TicketsSystem_Data;
 using TicketsSystem_Data.Repositories;
+using System.IdentityModel.Tokens.Jwt;
+using Microsoft.IdentityModel.Tokens;
+using System.Security.Claims;
+using System.Text;
+using Microsoft.Extensions.Configuration;
+using TicketsSystem.Core.Models;
+
 
 namespace TicketsSystem.Core.Services
 {
     public interface IUserService
     {
-        Task CreateNewUserAsync(UserDTO userDTO);
+        Task<UserResponse> CreateNewUserAsync(UserDTO userDTO);
         Task<IEnumerable<UserDTO>> GetAllUsersAsync();
-        Task<string> LoginAsync(LoginRequest request);
+        Task<LoginResponse> LoginAsync(LoginRequest request);
     }
 
     public class UserService : IUserService
@@ -24,16 +27,19 @@ namespace TicketsSystem.Core.Services
         private readonly UserDTOValidator _userValidation;
         private readonly LoginRequestValidation _loginRequestValidation;
         private readonly IPasswordHasher<User> _passwordHasher;
+        private readonly IConfiguration _config;
         public UserService(
             IUserRepository userRepository,
             UserDTOValidator validationRules,
             IPasswordHasher<User> passwordHasher,
-            LoginRequestValidation loginValidationsRules)
+            LoginRequestValidation loginValidationsRules,
+            IConfiguration configuration)
         {
             _userRepository = userRepository;
             _userValidation = validationRules;
             _passwordHasher = passwordHasher;
             _loginRequestValidation = loginValidationsRules;
+            _config = configuration;
         }
 
         public async Task<IEnumerable<UserDTO>> GetAllUsersAsync()
@@ -51,7 +57,7 @@ namespace TicketsSystem.Core.Services
             return userDTOs;
         }
 
-        public async Task CreateNewUserAsync(UserDTO userDTO)
+        public async Task<UserResponse> CreateNewUserAsync(UserDTO userDTO)
         {
             if (userDTO == null)
             {
@@ -61,7 +67,12 @@ namespace TicketsSystem.Core.Services
             var validationResult = await _userValidation.ValidateAsync(userDTO);
             if (!validationResult.IsValid)
             {
-                throw new ValidationException("One or more fields do not meet the requirements." + validationResult.Errors);
+                // throw new ValidationException("One or more fields do not meet the requirements." + validationResult.Errors);
+                return new UserResponse
+                {
+                    Success = false,
+                    Message = "The email or password format is invalid."
+                };
             }
 
             var newUser = new User
@@ -76,9 +87,15 @@ namespace TicketsSystem.Core.Services
             newUser.PasswordHash = _passwordHasher.HashPassword(newUser, userDTO.Password);
 
             await _userRepository.CreateNewUser(newUser);
+
+            return new UserResponse
+            {
+                Success = true,
+                Message = "User created successfully."
+            };
         }
 
-        public async Task<string> LoginAsync(LoginRequest request)
+        public async Task<LoginResponse> LoginAsync(LoginRequest request)
         {
             if (request == null)
             {
@@ -88,24 +105,64 @@ namespace TicketsSystem.Core.Services
             var validationResult = await _loginRequestValidation.ValidateAsync(request);
             if (!validationResult.IsValid)
             {
-                throw new ValidationException("Email or password are not in a valid format." + validationResult.Errors);
+                return new LoginResponse
+                {
+                    Success = false,
+                    Message = "The email or password format is invalid."
+                };
             }
 
             var user = await _userRepository.Login(request.Email);
 
             if (user == null)
             {
-                return ("The email address does not exist.");
+                return new LoginResponse { Success = false, Message = "Incorrect credentials" };
             }
 
             var verificationPassword = _passwordHasher.VerifyHashedPassword(user, user.PasswordHash, request.Password);
 
             if (verificationPassword != PasswordVerificationResult.Success)
             {
-                return ("Incorrect password");
+                return new LoginResponse { Success = false, Message = "Incorrect credentials" };
             }
 
-            return ("Login Success");
+            var tokenExpiration = DateTime.UtcNow.AddDays(7);
+            var token = GenereteJwtToken(user, tokenExpiration);
+
+            return new LoginResponse
+            {
+                Success = true,
+                Token = token,
+                Message = "Login success",
+                Expiration = tokenExpiration
+            };
+        }
+
+        private string GenereteJwtToken(User user, DateTime expiration)
+        {
+            var claims = new[]
+            {
+                new Claim(JwtRegisteredClaimNames.Sub, user.UserId.ToString()),
+                new Claim(JwtRegisteredClaimNames.Email, user.Email),
+                // Unique id token
+                new Claim(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString()),
+                // Roles
+                new Claim(ClaimTypes.Role, user.Role)
+            };
+
+            var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_config["Jwt:Key"]));
+            var creds = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
+
+            var token = new JwtSecurityToken(
+                issuer: _config["Jwt:Issuer"],
+                audience: _config["Jwt:Audience"],
+                claims: claims,
+                // Expiration time
+                expires: expiration,
+                signingCredentials: creds
+            );
+
+            return new JwtSecurityTokenHandler().WriteToken(token);
         }
 
     }

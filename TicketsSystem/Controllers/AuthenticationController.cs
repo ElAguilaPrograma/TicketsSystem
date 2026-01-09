@@ -1,4 +1,5 @@
-﻿using Microsoft.AspNetCore.Http;
+﻿using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using TicketsSystem.Core.Services;
 using TicketsSystem.Data.DTOs;
@@ -16,6 +17,7 @@ namespace TicketsSystem.Controllers
         }
 
         [HttpGet("getallusers")]
+        [Authorize(Roles = "Admin")]
         public async Task<IActionResult> GetAllUsers()
         {
             var users = await _userService.GetAllUsersAsync();
@@ -24,21 +26,35 @@ namespace TicketsSystem.Controllers
         }
 
         [HttpPost("createuser")]
+        [Authorize(Roles = "Admin")]
         public async Task<IActionResult> CreateNewUser([FromBody] UserDTO userDTO)
         {
-            await _userService.CreateNewUserAsync(userDTO);
+            var result = await _userService.CreateNewUserAsync(userDTO);
 
-            return Ok(new
+            if (!result.Success)
             {
-                Success = true,
-                Message = "User created"
-            });
+                return BadRequest(new
+                {
+                    message = result.Message
+                });
+            }
+
+            return Ok(result);
         }
 
         [HttpPost("login")]
         public async Task<IActionResult> Login([FromBody] LoginRequest request)
         {
-            string result = await _userService.LoginAsync(request);
+            var result = await _userService.LoginAsync(request);
+            
+            if (!result.Success)
+            {
+                return Unauthorized(new
+                {
+                    message = result.Message
+                });
+            }
+
             return Ok(result);
         }
     }

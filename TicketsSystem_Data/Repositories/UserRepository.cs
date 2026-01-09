@@ -1,6 +1,4 @@
-﻿using Microsoft.AspNetCore.Identity;
-using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
+﻿using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using TicketsSystem.Data.DTOs;
 
@@ -17,16 +15,13 @@ namespace TicketsSystem_Data.Repositories
     {
         private readonly SystemTicketsContext _context;
         private readonly IConfiguration _configuration;
-        private readonly IPasswordHasher<User> _passwordHasher;
 
         public UserRepository(
             SystemTicketsContext systemTicketsContext, 
-            IConfiguration configuration,
-            IPasswordHasher<User> passwordHasher)
+            IConfiguration configuration)
         {
             _context = systemTicketsContext;
             _configuration = configuration;
-            _passwordHasher = passwordHasher;
         }
 
         public async Task<IEnumerable<User>> GetAllUsers()
