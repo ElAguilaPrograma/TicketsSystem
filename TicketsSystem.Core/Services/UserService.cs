@@ -20,9 +20,11 @@ namespace TicketsSystem.Core.Services
     public interface IUserService
     {
         Task<Result> CreateNewUserAsync(UserDTO userDTO);
+        Task<Result> DeactivateOrActivateAUserAsync(string userIdStr);
         Task<Result> DeleteUserAsync(string userIdStr);
         Task<Result<IEnumerable<UserDTO>>> GetAllUsersAsync();
         Task<Result<LoginSuccessDto>> LoginAsync(LoginRequest request);
+        Task<Result<IEnumerable<UserDTO>>> SearchUserAsync(string query);
         Task<Result> UpdateUserInformationAsync(UserDTO userDTO, string userIdStr);
     }
 
@@ -52,6 +54,7 @@ namespace TicketsSystem.Core.Services
             var users = await _userRepository.GetAllUsers();
             IEnumerable<UserDTO> userDTOs = users.Select(u => new UserDTO
             {
+                UserId = u.UserId,
                 FullName = u.FullName,
                 Email = u.Email,
                 Password = " ",
@@ -111,6 +114,9 @@ namespace TicketsSystem.Core.Services
 
             if (user == null)
                 return Result.Fail("Incorrect credentials");
+
+            if (!user.IsActive)
+                return Result.Fail("User is deactivate");
 
             var verificationPassword = _passwordHasher.VerifyHashedPassword(user, user.PasswordHash, request.Password);
 
@@ -197,5 +203,46 @@ namespace TicketsSystem.Core.Services
             return new JwtSecurityTokenHandler().WriteToken(token);
         }
 
+        public async Task<Result<IEnumerable<UserDTO>>> SearchUserAsync(string query)
+        {
+            if (string.IsNullOrWhiteSpace(query))
+                return Result.Fail("Query format is not valid");
+
+            query = query.ToLower();
+
+            var user = await _userRepository.SearchUsers(query);
+
+            IEnumerable<UserDTO> userDTO = user.Select(u => new UserDTO
+            {
+                UserId = u.UserId,
+                FullName = u.FullName,
+                Email = u.Email,
+                Password = " ",
+                Role = u.Role,
+                IsActive = u.IsActive,
+                CreatedAt = u.CreatedAt
+            });
+            
+            return Result.Ok(userDTO);
+        }
+
+        public async Task<Result> DeactivateOrActivateAUserAsync(string userIdStr)
+        {
+            if (string.IsNullOrWhiteSpace(userIdStr))
+                return Result.Fail("There was a problem getting the user");
+
+            Guid userId = Guid.Parse(userIdStr);
+
+            var user = await _userRepository.GetUserById(userId);
+
+            if (user == null)
+                return Result.Fail("The user is does not exist");
+
+            user.IsActive = !user.IsActive;
+
+            await _userRepository.UpdateUserInfo(user);
+
+            return Result.Ok();
+        }
     }
 }

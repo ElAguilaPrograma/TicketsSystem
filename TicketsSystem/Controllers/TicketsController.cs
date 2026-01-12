@@ -1,5 +1,4 @@
 ﻿using Microsoft.AspNetCore.Authorization;
-using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using TicketsSystem.Core.Services;
@@ -42,7 +41,7 @@ namespace TicketsSystem.Api.Controllers
         }
 
         [HttpGet("getticketsbyuserid/{userId}")]
-        [Authorize(Roles = "Admin")]
+        [Authorize(Roles = "Admin")] 
         public async Task<IActionResult> GetTicketsByUserId(string userId)
         {
             var result = await _ticketsService.GetTicketsByUserIdAsync(userId);
@@ -72,6 +71,41 @@ namespace TicketsSystem.Api.Controllers
 
             if (result.IsFailed)
                 return BadRequest(result.Errors.Select(e => e.Message));
+
+            return Ok();
+        }
+
+        [HttpPost("accepttickets/{ticketId}")]
+        [Authorize(Roles = "Admin, Agent")]
+        public async Task<IActionResult> AcceptTicket(string ticketId)
+        {
+            var result = await _ticketsService.AcceptTickets(ticketId);
+
+            if (result.IsFailed)
+                return BadRequest(result.Errors.First().Message);
+
+            return Ok();
+        }
+
+        [HttpPost("changeticketstatus/{ticketId}/{statusId}")]
+        [Authorize(Roles = "Admin, Agent")]
+        public async Task<IActionResult> ChangeTicketStatus(string ticketId, int statusId)
+        {
+            var result = await _ticketsService.ChangeTicketStatusAsync(ticketId, statusId);
+
+            if (result.IsFailed)
+                return BadRequest(result.Errors.First().Message);
+
+            return Ok();
+        }
+
+        [HttpPost("changeticketpriority/{ticketId}/{priorityId}")]
+        public async Task<IActionResult> ChangeTicketPriority(string ticketId, int priorityId)
+        {
+            var result = await _ticketsService.ChangeTicketPriorityAsync(ticketId, priorityId);
+
+            if (result.IsFailed)
+                return BadRequest(result.Errors.First().Message);
 
             return Ok();
         }

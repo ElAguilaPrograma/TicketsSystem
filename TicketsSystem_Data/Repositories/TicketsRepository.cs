@@ -8,12 +8,14 @@ namespace TicketsSystem.Data.Repositories
 {
     public interface ITicketsRepository
     {
+        Task AcceptTickets(Ticket ticketAccepted);
         Task AssingTicket(Ticket ticketWithAssingUserId);
         Task CreateTicket(Ticket newTicket);
         Task<IEnumerable<Ticket>> GetAllTickets();
         Task<IEnumerable<Ticket>> GetCurrentUserTickets(Guid currentUserId);
         Task<Ticket?> GetTicketById(Guid ticketId);
         Task<IEnumerable<Ticket>> GetTicketsByUserId(Guid userId);
+        Task UpdateTicketInfo(Ticket ticket);
     }
 
     public class TicketsRepository : ITicketsRepository
@@ -63,9 +65,21 @@ namespace TicketsSystem.Data.Repositories
             return _context.SaveChangesAsync();
         }
 
+        public Task UpdateTicketInfo(Ticket ticket)
+        {
+            _context.Tickets.Update(ticket);
+            return _context.SaveChangesAsync();
+        }
+
         public Task AssingTicket(Ticket ticketWithAssingUserId)
         {
             _context.Tickets.Update(ticketWithAssingUserId);
+            return _context.SaveChangesAsync();
+        }
+
+        public Task AcceptTickets(Ticket ticketAccepted)
+        {
+            _context.Tickets.Update(ticketAccepted);
             return _context.SaveChangesAsync();
         }
     }

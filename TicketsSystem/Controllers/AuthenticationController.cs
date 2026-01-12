@@ -64,6 +64,18 @@ namespace TicketsSystem.Controllers
             return Ok();
         }
 
+        [HttpGet("searchuser/{query}")]
+        [Authorize(Roles = "Admin")]
+        public async Task<IActionResult> SearchUser(string query)
+        {
+            var result = await _userService.SearchUserAsync(query);
+
+            if (result.IsFailed)
+                return NotFound(new { errors = result.Errors.Select(e => e.Message) });
+
+            return Ok(result.Value);
+        }
+
         [HttpPost("login")]
         public async Task<IActionResult> Login([FromBody] LoginRequest request)
         {
@@ -73,6 +85,18 @@ namespace TicketsSystem.Controllers
                 return Unauthorized(new { message = result.Errors.First().Message });
 
             return Ok(result.Value);
+        }
+
+        [HttpPost("deactivateauser/{userId}")]
+        [Authorize(Roles = "Admin")]
+        public async Task<IActionResult> DeactivateAUser(string userId)
+        {
+            var result = await _userService.DeactivateOrActivateAUserAsync(userId);
+
+            if (result.IsFailed)
+                return BadRequest(new { message = result.Errors.First().Message });
+
+            return Ok();
         }
     }
 }

@@ -12,6 +12,7 @@ namespace TicketsSystem_Data.Repositories
         Task<IEnumerable<User>> GetAllUsers();
         Task<User?> GetUserById(Guid userId);
         Task<User?> Login(string email);
+        Task<IEnumerable<User>> SearchUsers(string query);
         Task UpdateUserInfo(User userInfo);
     }
 
@@ -56,5 +57,13 @@ namespace TicketsSystem_Data.Repositories
 
         public Task<bool> EmailExist(string email)
             => _context.Users.AnyAsync(u => u.Email == email);
+
+        public async Task<IEnumerable<User>> SearchUsers(string query)
+        {
+            return await _context.Users
+                .Where(u => u.Email.ToLower().Contains(query) || u.FullName.ToLower().Contains(query))
+                .ToListAsync();
+        }
+
     }
 }
