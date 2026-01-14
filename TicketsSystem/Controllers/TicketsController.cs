@@ -1,15 +1,19 @@
-﻿using Microsoft.AspNetCore.Authorization;
+﻿using FluentResults;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc.Infrastructure;
+using TicketsSystem.Core.Errors;
 using TicketsSystem.Core.Services;
 using TicketsSystem.Data.DTOs;
+using TicketsSystem.Data.DTOs.TicketsDTO;
 
 namespace TicketsSystem.Api.Controllers
 {
     [Authorize]
     [Route("api/[controller]")]
     [ApiController]
-    public class TicketsController : ControllerBase
+    public class TicketsController : ApiBaseController
     {
         private readonly ITicketsService _ticketsService;
         public TicketsController(ITicketsService ticketsService)
@@ -20,14 +24,7 @@ namespace TicketsSystem.Api.Controllers
         [HttpGet("getalltickets")]
         [Authorize(Roles = "Admin")]
         public async Task<IActionResult> GetAllTickets()
-        {
-            var result = await _ticketsService.GetAllTicketsAsync();
-
-            if (result.IsFailed)
-                return BadRequest(new { errors = result.Errors.Select(e => e.Message) });
-
-            return Ok(result.Value);
-        }
+            => ProcessResult(await _ticketsService.GetAllTicketsAsync());
 
         [HttpGet("getcurrentusertickets")]
         public async Task<IActionResult> GetCurrentUserTickets()
@@ -53,12 +50,37 @@ namespace TicketsSystem.Api.Controllers
         }
 
         [HttpPost("createticket")]
-        public async Task<IActionResult> CreateTicket([FromBody] TicketsDTO ticketsDTO)
+        public async Task<IActionResult> CreateTicket([FromBody] TicketsCreateDto ticketsCreateDto)
         {
-            var result = await _ticketsService.CreateATicketAsync(ticketsDTO);
+            var result = await _ticketsService.CreateATicketAsync(ticketsCreateDto);
+
+            if (result.IsSuccess) return Ok();
+
+            if (result.HasError<NotFoundError>())
+                return NotFound(result.Errors.First().Message);
+
+            return BadRequest(result.Errors.Select(e => e.Message));
+        }
+
+        [HttpPost("updateticketinfo/{ticketId}")]
+        [Authorize(Roles = "Admin, Agent")]
+        public async Task<IActionResult> UpdateTicket([FromBody] TicketsUpdateDto tickets, string ticketId)
+        {
+            var result = await _ticketsService.UpdateATicketInfoAsync(tickets, ticketId);
 
             if (result.IsFailed)
                 return BadRequest(new { errors = result.Errors.Select(e => e.Message) });
+
+            return Ok();
+        }
+
+        [HttpPost("updateticketpriority")]
+        public async Task<IActionResult> UpdateTicketPriorityLevel([FromBody] TicketsUpdateDto ticketsUpdateDto, string ticketId)
+        {
+            var result = await _ticketsService.UpdateATicketInfoUserRoleAsync(ticketsUpdateDto, ticketId);
+
+            if (result.IsFailed) 
+                return BadRequest(new { errors = result.Errors?.Select(e => e.Message) });
 
             return Ok();
         }
@@ -87,27 +109,5 @@ namespace TicketsSystem.Api.Controllers
             return Ok();
         }
 
-        [HttpPost("changeticketstatus/{ticketId}/{statusId}")]
-        [Authorize(Roles = "Admin, Agent")]
-        public async Task<IActionResult> ChangeTicketStatus(string ticketId, int statusId)
-        {
-            var result = await _ticketsService.ChangeTicketStatusAsync(ticketId, statusId);
-
-            if (result.IsFailed)
-                return BadRequest(result.Errors.First().Message);
-
-            return Ok();
-        }
-
-        [HttpPost("changeticketpriority/{ticketId}/{priorityId}")]
-        public async Task<IActionResult> ChangeTicketPriority(string ticketId, int priorityId)
-        {
-            var result = await _ticketsService.ChangeTicketPriorityAsync(ticketId, priorityId);
-
-            if (result.IsFailed)
-                return BadRequest(result.Errors.First().Message);
-
-            return Ok();
-        }
     }
 }

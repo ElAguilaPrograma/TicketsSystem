@@ -1,12 +1,9 @@
 ﻿using FluentValidation;
-using System;
-using System.Collections.Generic;
-using System.Text;
-using TicketsSystem.Data.DTOs;
+using TicketsSystem.Data.DTOs.TicketsDTO;
 
 namespace TicketsSystem.Core.Validations
 {
-    public class TicketsDTOValidator : AbstractValidator<TicketsDTO>
+    public class TicketsDTOValidator : AbstractValidator<TicketsUpdateDto>
     {
         public TicketsDTOValidator()
         {

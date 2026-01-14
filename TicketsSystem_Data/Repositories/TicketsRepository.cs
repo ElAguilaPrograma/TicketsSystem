@@ -31,6 +31,7 @@ namespace TicketsSystem.Data.Repositories
             var tickets = await _context.Tickets
                 .Include(t => t.Status)
                 .Include(t => t.Priority)
+                .Include(t => t.AssignedToUser)
                 .ToListAsync();
             return tickets;
         }

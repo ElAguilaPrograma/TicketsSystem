@@ -1,11 +1,16 @@
 ﻿using FluentResults;
+using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc.Formatters;
 using Microsoft.EntityFrameworkCore.Query.SqlExpressions;
 using System;
 using System.Collections.Generic;
 using System.Text;
+using TicketsSystem.Core.Errors;
 using TicketsSystem.Core.Validations;
+using TicketsSystem.Core.Validations.TicketsValidations;
 using TicketsSystem.Data.DTOs;
+using TicketsSystem.Data.DTOs.TicketsDTO;
 using TicketsSystem.Data.Repositories;
 using TicketsSystem_Data;
 using TicketsSystem_Data.Repositories;
@@ -16,43 +21,45 @@ namespace TicketsSystem.Core.Services
     {
         Task<Result> AcceptTickets(string ticketIdStr);
         Task<Result> AssingTicketAsync(string userIdStr, string ticketIdSrt);
-        Task<Result> ChangeTicketPriorityAsync(string ticketIdStr, int priorityId);
-        Task<Result> ChangeTicketStatusAsync(string ticketIdStr, int statusId);
-        Task<Result> CreateATicketAsync(TicketsDTO ticketsDTO);
-        Task<Result<IEnumerable<TicketsDTO>>> GetAllTicketsAsync();
-        Task<Result<IEnumerable<TicketsDTO>>> GetCurrentUserTicketsAsync();
-        Task<Result<IEnumerable<TicketsDTO>>> GetTicketsByUserIdAsync(string userIdStr);
+        Task<Result> CreateATicketAsync(TicketsCreateDto ticketsCreateDto);
+        Task<Result<IEnumerable<TicketsReadDto>>> GetAllTicketsAsync();
+        Task<Result<IEnumerable<TicketsReadDto>>> GetCurrentUserTicketsAsync();
+        Task<Result<IEnumerable<TicketsReadDto>>> GetTicketsByUserIdAsync(string userIdStr);
+        Task<Result> UpdateATicketInfoAsync(TicketsUpdateDto ticketsUpdateDto, string ticketIdStr);
+        Task<Result> UpdateATicketInfoUserRoleAsync([FromBody] TicketsUpdateDto ticketsUpdateDto, string ticketIdStr);
     }
 
     public class TicketsService : ITicketsService
     {
         private readonly ITicketsRepository _ticketsRepository;
-        private readonly TicketsDTOValidator _ticketsDTOValidator;
         private readonly ICurrentUserService _currentUserService;
         private readonly IGetUserRole _getUseRole;
+        private readonly TicketsCreateValidator _ticketsCreateValidator;
+        private readonly TicketsUpdateValidator _ticketsUpdateValidator;
         public TicketsService(ITicketsRepository ticketsRepository, 
-            TicketsDTOValidator validationRules, 
             ICurrentUserService currentUserService,
-            IGetUserRole getUserRole)
+            TicketsCreateValidator ticketsCreateValidator,
+            IGetUserRole getUserRole,
+            TicketsUpdateValidator ticketsUpdateValidator)
         {
             _ticketsRepository = ticketsRepository;
-            _ticketsDTOValidator = validationRules;
             _currentUserService = currentUserService;
             _getUseRole = getUserRole;
+            _ticketsCreateValidator = ticketsCreateValidator;
+            _ticketsUpdateValidator = ticketsUpdateValidator;
         }
 
-        public async Task<Result<IEnumerable<TicketsDTO>>> GetAllTicketsAsync()
+        public async Task<Result<IEnumerable<TicketsReadDto>>> GetAllTicketsAsync()
         {
             var tickets = await _ticketsRepository.GetAllTickets();
 
-            IEnumerable<TicketsDTO> ticketsDTOs = tickets.Select(t => new TicketsDTO
+            IEnumerable<TicketsReadDto> ticketsDTOs = tickets.Select(t => new TicketsReadDto
             {
+                TicketId = t.TicketId,
                 Title = t.Title,
                 Description = t.Description,
-                StatusId = t.StatusId,
-                StatusName = t.Status.Name ?? "No status",
-                PriorityId = t.PriorityId,
-                PriorityName = t.Priority.Name ?? "No priority",
+                StatusName = t.Status.Name,
+                PriorityName = t.Priority.Name,
                 CreatedAt = t.CreatedAt,
                 UpdatedAt = t.UpdatedAt,
                 ClosedAt = t.ClosedAt
@@ -61,20 +68,19 @@ namespace TicketsSystem.Core.Services
             return Result.Ok(ticketsDTOs);
         }
 
-        public async Task<Result<IEnumerable<TicketsDTO>>> GetCurrentUserTicketsAsync()
+        public async Task<Result<IEnumerable<TicketsReadDto>>> GetCurrentUserTicketsAsync()
         {
             Guid currentUserId = _currentUserService.GetCurrentUserId();
 
             var tickets = await _ticketsRepository.GetCurrentUserTickets(currentUserId);
 
-            IEnumerable<TicketsDTO> ticketsDTOs = tickets.Select(t => new TicketsDTO
+            IEnumerable<TicketsReadDto> ticketsDTOs = tickets.Select(t => new TicketsReadDto
             {
+                TicketId = t.TicketId,
                 Title = t.Title,
                 Description = t.Description,
-                StatusId = t.StatusId,
-                StatusName = t.Status.Name ?? "No status",
-                PriorityId = t.PriorityId,
-                PriorityName = t.Priority.Name ?? "No priority",
+                StatusName = t.Status.Name,
+                PriorityName = t.Priority.Name,
                 CreatedAt = t.CreatedAt,
                 UpdatedAt = t.UpdatedAt,
                 ClosedAt = t.ClosedAt
@@ -83,20 +89,19 @@ namespace TicketsSystem.Core.Services
             return Result.Ok(ticketsDTOs);
         }
 
-        public async Task<Result<IEnumerable<TicketsDTO>>> GetTicketsByUserIdAsync(string userIdStr)
+        public async Task<Result<IEnumerable<TicketsReadDto>>> GetTicketsByUserIdAsync(string userIdStr)
         {
             Guid userId = Guid.Parse(userIdStr);
 
             var tickets = await _ticketsRepository.GetCurrentUserTickets(userId);
 
-            IEnumerable<TicketsDTO> ticketsDTOs = tickets.Select(t => new TicketsDTO
+            IEnumerable<TicketsReadDto> ticketsDTOs = tickets.Select(t => new TicketsReadDto
             {
+                TicketId = t.TicketId,
                 Title = t.Title,
                 Description = t.Description,
-                StatusId = t.StatusId,
-                StatusName = t.Status.Name ?? "No status",
-                PriorityId = t.PriorityId,
-                PriorityName = t.Priority.Name ?? "No priority",
+                StatusName = t.Status.Name,
+                PriorityName = t.Priority.Name,
                 CreatedAt = t.CreatedAt,
                 UpdatedAt = t.UpdatedAt,
                 ClosedAt = t.ClosedAt
@@ -105,15 +110,15 @@ namespace TicketsSystem.Core.Services
             return Result.Ok(ticketsDTOs);
         }
 
-        public async Task<Result> CreateATicketAsync(TicketsDTO ticketsDTO)
+        public async Task<Result> CreateATicketAsync(TicketsCreateDto ticketsCreateDto)
         {
-            if (ticketsDTO == null) 
-                throw new ArgumentNullException(nameof(ticketsDTO));
+            if (ticketsCreateDto == null)
+                return Result.Fail(new BadRequestError("Request body is requiered"));
 
-            var validationResults = await _ticketsDTOValidator.ValidateAsync(ticketsDTO);
+            var validationResults = await _ticketsCreateValidator.ValidateAsync(ticketsCreateDto);
             if (!validationResults.IsValid)
             {
-                var errorMessages = validationResults.Errors.Select(e => e.ErrorMessage);
+                var errorMessages = validationResults.Errors.Select(e => new BadRequestError(e.ErrorMessage));
                 return Result.Fail(errorMessages);
             }
 
@@ -121,10 +126,10 @@ namespace TicketsSystem.Core.Services
 
             var newTicket = new Ticket
             {
-                Title = ticketsDTO.Title,
-                Description = ticketsDTO.Description,
-                StatusId = ticketsDTO.StatusId,
-                PriorityId = ticketsDTO.PriorityId,
+                Title = ticketsCreateDto.Title,
+                Description = ticketsCreateDto.Description,
+                StatusId = ticketsCreateDto.StatusId,
+                PriorityId = ticketsCreateDto.PriorityId,
                 CreatedByUserId = userId
             };
 
@@ -133,69 +138,68 @@ namespace TicketsSystem.Core.Services
             return Result.Ok();
         }
 
-        public async Task<Result> ChangeTicketStatusAsync(string ticketIdStr, int statusId)
+        public async Task<Result> UpdateATicketInfoAsync(TicketsUpdateDto ticketsUpdateDto, string ticketIdStr)
         {
             if (string.IsNullOrWhiteSpace(ticketIdStr))
-                return Result.Fail("Ticket is bad formated");
-
-            if (statusId <= 0 || statusId > 5)
-                return Result.Fail("The status code it does not exist");
+                return Result.Fail(new BadRequestError("Ticket id is requiered"));
 
             Guid ticketId = Guid.Parse(ticketIdStr);
-            var userId = _currentUserService.GetCurrentUserId();
             var ticket = await _ticketsRepository.GetTicketById(ticketId);
-            var userRole = _currentUserService.GetCurrentUserRole();
 
             if (ticket == null)
-                return Result.Fail("The ticket it does not exist");
+                return Result.Fail(new NotFoundError("Ticket not found"));
 
-            if (userRole == "Agent")
+            if (ticketsUpdateDto == null)
+                return Result.Fail(new BadRequestError("Request body is requiered"));
+
+            var validationResults = await _ticketsUpdateValidator.ValidateAsync(ticketsUpdateDto);
+            if (!validationResults.IsValid)
             {
-                if (userId != ticket.AssignedToUserId)
-                    return Result.Fail("Your not the agent assigned to this ticket");
+                var errorMessages = validationResults.Errors.Select(e => new BadRequestError(e.ErrorMessage));
+                return Result.Fail(errorMessages);
             }
 
-            ticket.StatusId = statusId;
+            ticket.Title = ticketsUpdateDto.Title;
+            ticket.Description = ticketsUpdateDto.Description;
+            ticket.StatusId = ticketsUpdateDto.StatusId;
+            ticket.PriorityId = ticketsUpdateDto.PriorityId;
+            ticket.UpdatedAt = ticketsUpdateDto.UpdatedAt;
+            ticket.AssignedToUserId = ticketsUpdateDto.AssignedToUserId;
 
             await _ticketsRepository.UpdateTicketInfo(ticket);
 
             return Result.Ok();
         }
 
-        public async Task<Result> ChangeTicketPriorityAsync(string ticketIdStr, int priorityId)
+        public async Task<Result> UpdateATicketInfoUserRoleAsync([FromBody] TicketsUpdateDto ticketsUpdateDto, string ticketIdStr)
         {
+            if (ticketsUpdateDto == null)
+                return Result.Fail("One o mora fields are empty");
+
             if (string.IsNullOrWhiteSpace(ticketIdStr))
                 return Result.Fail("Ticket is bad formated");
 
-            if (priorityId <= 0 || priorityId > 4)
-                return Result.Fail("The priority code is not exist");
+            var validationResults = await _ticketsUpdateValidator.ValidateAsync(ticketsUpdateDto);
+            if (!validationResults.IsValid)
+            {
+                var errorMessages = validationResults.Errors.Select(e => e.ErrorMessage);
+                return Result.Fail(errorMessages);
+            }
 
             Guid ticketId = Guid.Parse(ticketIdStr);
-            var userId = _currentUserService.GetCurrentUserId();
             var ticket = await _ticketsRepository.GetTicketById(ticketId);
 
             if (ticket == null)
-                return Result.Fail("The ticket does not exist");
+                return Result.Fail("The tickets does not exist");
 
-            var userRole = _currentUserService.GetCurrentUserRole();
-            if (userRole == "User")
-            {
-                if (userId != ticket.CreatedByUserId)
-                    return Result.Fail("UnAuthorized");
-            }
-            else if (userRole == "Agent")
-            {
-                if (userId != ticket.AssignedToUserId)
-                    return Result.Fail("Your not the agent assigned to this ticket");
-            }
+            if (ticket.AssignedToUserId != null)
+                return Result.Fail("The ticket was accept by a Agent");
 
-            ticket.PriorityId = priorityId;
-
-            await _ticketsRepository.UpdateTicketInfo(ticket);
-
+            ticket.PriorityId = ticketsUpdateDto.PriorityId;
+            
             return Result.Ok();
         }
-
+             
         public async Task<Result> AssingTicketAsync(string userIdStr, string ticketIdSrt)
         {
             if (string.IsNullOrWhiteSpace(ticketIdSrt) || ticketIdSrt == null)

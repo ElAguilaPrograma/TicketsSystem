@@ -1,0 +1,20 @@
+﻿using FluentValidation;
+using TicketsSystem.Data.DTOs.TicketsDTO;
+
+namespace TicketsSystem.Core.Validations.TicketsValidations
+{
+    public class TicketsUpdateValidator : AbstractValidator<TicketsUpdateDto>
+    {
+        private readonly ITicketsCustomValidations _ticketsCustomValidations;
+        public TicketsUpdateValidator(ITicketsCustomValidations ticketsCustomValidations)
+        {
+            _ticketsCustomValidations = ticketsCustomValidations;
+            RuleFor(t => t.Title).NotEmpty().MaximumLength(50);
+            RuleFor(t => t.Description).NotEmpty().MaximumLength(500);
+            RuleFor(t => t.StatusId).Must(t => _ticketsCustomValidations.CorrectStatusValue(t))
+                .WithMessage("'{PropertyValue}' is not a recognized status level.");
+            RuleFor(t => t.PriorityId).Must(t => _ticketsCustomValidations.CorrectPriorityValue(t))
+                .WithMessage("'{PropertyValue}' is not a recognized priority level.");
+        }
+    }
+}

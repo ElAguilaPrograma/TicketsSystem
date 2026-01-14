@@ -27,8 +27,7 @@ namespace TicketsSystem_Data.Repositories
 
         public async Task<IEnumerable<User>> GetAllUsers()
         {
-            var users = await _context.Users.ToListAsync();
-            return users;
+            return await _context.Users.ToListAsync();
         }
 
         public Task CreateNewUser(User newUser)

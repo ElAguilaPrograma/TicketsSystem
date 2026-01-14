@@ -7,6 +7,7 @@ using System.Security.Claims;
 using System.Text;
 using TicketsSystem.Core.Services;
 using TicketsSystem.Core.Validations;
+using TicketsSystem.Core.Validations.TicketsValidations;
 using TicketsSystem.Data.Repositories;
 using TicketsSystem_Data;
 using TicketsSystem_Data.Repositories;
@@ -139,9 +140,11 @@ builder.Services.AddScoped<ITicketsService, TicketsService>();
 builder.Services.AddScoped<IGetUserRole, GetUserRoleService>();
 
 // Validations
-builder.Services.AddScoped<UserDTOValidator, UserDTOValidator>();
-builder.Services.AddScoped<LoginRequestValidation, LoginRequestValidation>();
-builder.Services.AddScoped<TicketsDTOValidator, TicketsDTOValidator>();
+builder.Services.AddTransient<UserDTOValidator, UserDTOValidator>();
+builder.Services.AddTransient<LoginRequestValidation, LoginRequestValidation>();
+builder.Services.AddTransient<TicketsCreateValidator, TicketsCreateValidator>();
+builder.Services.AddTransient<TicketsUpdateValidator, TicketsUpdateValidator>();
+builder.Services.AddTransient<ITicketsCustomValidations, TicketsCustomValidations>();
 
 var app = builder.Build();
 
