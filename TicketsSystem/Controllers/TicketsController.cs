@@ -58,5 +58,8 @@ namespace TicketsSystem.Api.Controllers
         public async Task<IActionResult> AcceptTicket(string ticketId)
             => ProcessResult(await _ticketsService.AcceptTickets(ticketId));
 
+        [HttpPost("searchtickets/{query}")]
+        public async Task<IActionResult> SearchTickets(string query, int? statusId, int? priorityId)
+            => ProcessResult(await _ticketsService.SearchTicketsAsync(query, statusId, priorityId));
     }
 }

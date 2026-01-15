@@ -25,6 +25,7 @@ namespace TicketsSystem.Core.Services
         Task<Result<IEnumerable<TicketsReadDto>>> GetAllTicketsAsync();
         Task<Result<IEnumerable<TicketsReadDto>>> GetCurrentUserTicketsAsync();
         Task<Result<IEnumerable<TicketsReadDto>>> GetTicketsByUserIdAsync(string userIdStr);
+        Task<Result<IEnumerable<TicketsReadDto>>> SearchTicketsAsync(string query, int? statusId, int? priorityId);
         Task<Result> UpdateATicketInfoAsync(TicketsUpdateDto ticketsUpdateDto, string ticketIdStr);
         Task<Result> UpdateATicketInfoUserAsync([FromBody] TicketsUpdateDto ticketsUpdateDto, string ticketIdStr);
     }
@@ -36,7 +37,7 @@ namespace TicketsSystem.Core.Services
         private readonly IGetUserRole _getUseRole;
         private readonly TicketsCreateValidator _ticketsCreateValidator;
         private readonly TicketsUpdateValidator _ticketsUpdateValidator;
-        public TicketsService(ITicketsRepository ticketsRepository, 
+        public TicketsService(ITicketsRepository ticketsRepository,
             ICurrentUserService currentUserService,
             TicketsCreateValidator ticketsCreateValidator,
             IGetUserRole getUserRole,
@@ -71,8 +72,9 @@ namespace TicketsSystem.Core.Services
         public async Task<Result<IEnumerable<TicketsReadDto>>> GetCurrentUserTicketsAsync()
         {
             Guid currentUserId = _currentUserService.GetCurrentUserId();
+            string currentUserRole = _currentUserService.GetCurrentUserRole() ?? "";
 
-            var tickets = await _ticketsRepository.GetCurrentUserTickets(currentUserId);
+            var tickets = await _ticketsRepository.GetCurrentUserTickets(currentUserId, currentUserRole);
 
             IEnumerable<TicketsReadDto> ticketsDTOs = tickets.Select(t => new TicketsReadDto
             {
@@ -93,7 +95,7 @@ namespace TicketsSystem.Core.Services
         {
             Guid userId = Guid.Parse(userIdStr);
 
-            var tickets = await _ticketsRepository.GetCurrentUserTickets(userId);
+            var tickets = await _ticketsRepository.GetTicketsByUserId(userId);
 
             IEnumerable<TicketsReadDto> ticketsDTOs = tickets.Select(t => new TicketsReadDto
             {
@@ -196,10 +198,10 @@ namespace TicketsSystem.Core.Services
                 return Result.Fail(new BadRequestError("The ticket was already accepted by an Agent"));
 
             ticket.PriorityId = ticketsUpdateDto.PriorityId;
-            
+
             return Result.Ok();
         }
-             
+
         public async Task<Result> AssingTicketAsync(string userIdStr, string ticketIdSrt)
         {
             if (string.IsNullOrWhiteSpace(ticketIdSrt) || ticketIdSrt == null)
@@ -249,6 +251,36 @@ namespace TicketsSystem.Core.Services
             await _ticketsRepository.AssingTicket(ticket);
 
             return Result.Ok();
+        }
+
+        public async Task<Result<IEnumerable<TicketsReadDto>>> SearchTicketsAsync(
+            string query, 
+            int? statusValue = null, 
+            int? priorityValue = null)
+        {
+            if (string.IsNullOrWhiteSpace(query) || query == null)
+                return Result.Fail(new BadRequestError("Query format is not valid"));
+
+            query = query.ToLower();
+            var tickets = await _ticketsRepository.SearchTickets(query, statusValue, priorityValue);
+
+            if (tickets == null)
+                return Result.Fail(new NotFoundError("No tickets were found"));
+
+            IEnumerable<TicketsReadDto> ticketsReadDtos = tickets.Select(t => new TicketsReadDto
+            {
+                TicketId = t.TicketId,
+                Title = t.Title,
+                Description = t.Description,
+                StatusName = t.Status?.Name,
+                PriorityName = t.Priority?.Name,
+                AssignedToUser = t.AssignedToUser?.FullName ?? "To be defined",
+                CreatedAt = t.CreatedAt,
+                UpdatedAt = t.UpdatedAt,
+                ClosedAt = t.ClosedAt
+            });
+
+            return Result.Ok(ticketsReadDtos);
         }
 
     }

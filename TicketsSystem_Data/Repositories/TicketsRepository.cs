@@ -12,9 +12,10 @@ namespace TicketsSystem.Data.Repositories
         Task AssingTicket(Ticket ticketWithAssingUserId);
         Task CreateTicket(Ticket newTicket);
         Task<IEnumerable<Ticket>> GetAllTickets();
-        Task<IEnumerable<Ticket>> GetCurrentUserTickets(Guid currentUserId);
+        Task<IEnumerable<Ticket>> GetCurrentUserTickets(Guid currentUserId, string userRole);
         Task<Ticket?> GetTicketById(Guid ticketId);
         Task<IEnumerable<Ticket>> GetTicketsByUserId(Guid userId);
+        Task<IEnumerable<Ticket?>> SearchTickets(string query, int? statusId, int? priorityId);
         Task UpdateTicketInfo(Ticket ticket);
     }
 
@@ -36,10 +37,14 @@ namespace TicketsSystem.Data.Repositories
             return tickets;
         }
 
-        public async Task<IEnumerable<Ticket>> GetCurrentUserTickets(Guid currentUserId)
+        public async Task<IEnumerable<Ticket>> GetCurrentUserTickets(Guid currentUserId, string userRole)
         {
-            return await _context.Tickets
-                .Where(t => t.CreatedByUserId == currentUserId)
+            var queryable = _context.Tickets.Where(t => t.CreatedByUserId == currentUserId || currentUserId == t.AssignedToUserId);
+
+            if (userRole != "Agent")
+                queryable = queryable.Where(t => t.CreatedByUserId == currentUserId);
+
+            return await queryable
                 .Include(t => t.Status)
                 .Include(t => t.Priority)
                 .ToListAsync();
@@ -83,5 +88,22 @@ namespace TicketsSystem.Data.Repositories
             _context.Tickets.Update(ticketAccepted);
             return _context.SaveChangesAsync();
         }
+
+        public async Task<IEnumerable<Ticket?>> SearchTickets(string query, int? statusId, int? priorityId)
+        {
+            var queryable = _context.Tickets.Where(t => t.Title.ToLower().Contains(query));
+
+            if (statusId.HasValue)
+                queryable = queryable.Where(t => t.StatusId == statusId.Value);
+
+            if (priorityId.HasValue)
+                queryable = queryable.Where(t => t.PriorityId == priorityId.Value);
+
+            return await queryable
+                .Include(t => t.Status)
+                .Include(t => t.Priority)
+                .ToListAsync();
+        }
+
     }
 }

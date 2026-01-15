@@ -16,10 +16,10 @@ El sistema tiene 3 Roles.
 8.- Asignar tickets - Ready.
 9.- Cambiar estado y prioridad de los tickets. - Ready.
 10.- Editar los tickets. Ready.
-11.- Borrar los tickets.
-12.- Buscar tickets.
-13.- Ver el historial global todos los tickets.
-14.- Ver sus propios tickets.
+11.- Borrar los tickets. - Ready.
+12.- Buscar tickets. - Ready.
+13.- Ver el historial global todos los tickets. -Ready.
+14.- Ver sus propios tickets. - Ready.
 15.- Acceder a los tickets de los usuarios. - Ready.
 16.- Comentar tickets.
 17.- Ver comentarios.
