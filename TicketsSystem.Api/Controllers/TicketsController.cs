@@ -30,7 +30,7 @@ namespace TicketsSystem.Api.Controllers
             => ProcessResult(await _ticketsService.GetCurrentUserTicketsAsync());
 
         [HttpGet("getticketsbyuserid/{userId}")]
-        [Authorize(Roles = "Admin")] 
+        [Authorize(Roles = "Admin")]
         public async Task<IActionResult> GetTicketsByUserId(string userId)
             => ProcessResult(await _ticketsService.GetTicketsByUserIdAsync(userId));
 
@@ -66,7 +66,11 @@ namespace TicketsSystem.Api.Controllers
             => ProcessResult(await _ticketsService.CreateTicketCommentAsync(ticketId, ticketsCreateComment));
 
         [HttpGet("getticketscomment/{ticketId}")]
-        public async Task<IActionResult> GetTicketComment(string ticketId) 
+        public async Task<IActionResult> GetTicketComment(string ticketId)
             => ProcessResult(await _ticketsService.GetTicketCommentsAsync(ticketId));
+
+        [HttpPost("updateticketcommnet/{commentId}")]
+        public async Task<IActionResult> UpdateTicketComment([FromBody] TickersUpdateComment ticketsUpdateComment, string commentId)
+            => ProcessResult(await _ticketsService.UpdateTicketCommentAsync(ticketsUpdateComment, commentId));
     }
 }

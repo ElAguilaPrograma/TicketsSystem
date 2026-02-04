@@ -21,6 +21,7 @@ namespace TicketsSystem.Core.Services
         Task<Result<IEnumerable<TicketsReadDto>>> SearchTicketsAsync(string query, int? statusId, int? priorityId);
         Task<Result> UpdateATicketInfoAsync(TicketsUpdateDto ticketsUpdateDto, string ticketIdStr);
         Task<Result> UpdateATicketInfoUserAsync([FromBody] TicketsUpdateDto ticketsUpdateDto, string ticketIdStr);
+        Task<Result> UpdateTicketCommentAsync(TickersUpdateComment ticketsUpdateComment, string ticketCommentIdStr);
     }
 
     public class TicketsService : ITicketsService
@@ -323,6 +324,26 @@ namespace TicketsSystem.Core.Services
             });
 
             return Result.Ok(ticketsReadComments);
+        }
+
+        public async Task<Result> UpdateTicketCommentAsync(TickersUpdateComment ticketsUpdateComment, string ticketCommentIdStr)
+        {
+            if (ticketsUpdateComment == null)
+                return Result.Fail(new BadRequestError("Request body is required"));
+
+            Guid ticketCommentId = Guid.Parse(ticketCommentIdStr);
+
+            var ticketComment = await _ticketsRepository.GetTicketCommentById(ticketCommentId);
+
+            if (ticketComment == null)
+                return Result.Fail(new NotFoundError("The ticket does not exit"));
+
+            ticketComment.Content = ticketsUpdateComment.Content;
+            ticketComment.IsInternal = ticketsUpdateComment.IsInternal;
+
+            await _ticketsRepository.UpdateTicketComment(ticketComment);
+
+            return Result.Ok();
         }
 
     }

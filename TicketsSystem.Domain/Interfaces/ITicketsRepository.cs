@@ -16,4 +16,6 @@ public interface ITicketsRepository
     Task CreateTicketComment(TicketComment ticketComment);
     Task<bool> TicketExist(Guid ticketId);
     Task<IEnumerable<TicketComment>> GetTicketComments(Guid ticketId);
+    Task UpdateTicketComment(TicketComment ticketComment);
+    Task<TicketComment?> GetTicketCommentById(Guid ticketCommentId);
 }

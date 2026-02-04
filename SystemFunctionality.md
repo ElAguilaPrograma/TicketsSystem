@@ -21,8 +21,8 @@ El sistema tiene 3 Roles.
 13.- Ver el historial global todos los tickets. -Ready.
 14.- Ver sus propios tickets. - Ready.
 15.- Acceder a los tickets de los usuarios. - Ready.
-16.- Comentar tickets.
-17.- Ver comentarios.
+16.- Comentar tickets. - Ready.
+17.- Ver comentarios. - Ready.
 18.- Ediatar comentarios.
 19.- Borrar comentarios.
 18.- Enviar notificaciones.
